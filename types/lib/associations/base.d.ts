@@ -1,6 +1,9 @@
-import { ColumnOptions, Model, ModelCtor, Hookable } from '../model';
+import { ColumnOptions, Model, ModelCtor, Hookable } from "../model";
 
-export abstract class Association<S extends Model = Model, T extends Model = Model> {
+export abstract class Association<
+  S extends Model = Model,
+  T extends Model = Model
+> {
   public associationType: string;
   public source: ModelCtor<S>;
   public target: ModelCtor<T>;
@@ -80,6 +83,11 @@ export interface AssociationOptions extends Hookable {
    */
   constraints?: boolean;
   foreignKeyConstraint?: boolean;
+
+  /**
+   * Defaults to FK_SourceTableName_ForeignKeyColumnName
+   */
+  constraintName?: string;
 
   scope?: AssociationScope;
 }
