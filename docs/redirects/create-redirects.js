@@ -4,7 +4,7 @@ const jetpack = require('fs-jetpack');
 const redirectMap = require('./../redirects.json');
 
 function makeBoilerplate(url) {
-  return `
+	return `
     <!DOCTYPE html>
     <meta charset="utf-8">
     <title>Redirecting...</title>
@@ -14,5 +14,5 @@ function makeBoilerplate(url) {
 }
 
 for (const source of Object.keys(redirectMap)) {
-  jetpack.write(`esdoc/${source}`, makeBoilerplate(redirectMap[source]));
+	jetpack.write(`esdoc/${source}`, makeBoilerplate(redirectMap[source]));
 }

@@ -10,27 +10,27 @@ const current = Support.sequelize;
 const expect = chai.expect;
 
 describe('[MYSQL/MARIADB Specific] Query', () => {
-  describe('logWarnings', () => {
-    beforeEach(() => {
-      sinon.spy(console, 'log');
-    });
+	describe('logWarnings', () => {
+		beforeEach(() => {
+			sinon.spy(console, 'log');
+		});
 
-    afterEach(() => {
-      console.log.restore();
-    });
+		afterEach(() => {
+			console.log.restore();
+		});
 
-    it('check iterable', async () => {
-      const validWarning = [];
-      const invalidWarning = {};
-      const warnings = [validWarning, undefined, invalidWarning];
+		it('check iterable', async () => {
+			const validWarning = [];
+			const invalidWarning = {};
+			const warnings = [validWarning, undefined, invalidWarning];
 
-      const query = new Query({}, current, {});
-      const stub = sinon.stub(query, 'run');
-      stub.onFirstCall().resolves(warnings);
+			const query = new Query({}, current, {});
+			const stub = sinon.stub(query, 'run');
+			stub.onFirstCall().resolves(warnings);
 
-      const results = await query.logWarnings('dummy-results');
-      expect('dummy-results').to.equal(results);
-      expect(true).to.equal(console.log.calledOnce);
-    });
-  });
+			const results = await query.logWarnings('dummy-results');
+			expect('dummy-results').to.equal(results);
+			expect(true).to.equal(console.log.calledOnce);
+		});
+	});
 });

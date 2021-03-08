@@ -83,6 +83,7 @@
     "p-timeout": "^4.0.0",
     "pg": "^8.2.1",
     "pg-hstore": "^2.x",
+    "prettier": "^2.2.1",
     "rimraf": "^3.0.2",
     "semantic-release": "^17.3.0",
     "sinon": "^9.0.2",

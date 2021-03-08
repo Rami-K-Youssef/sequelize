@@ -1,140 +1,139 @@
 'use strict';
 
 const chai = require('chai'),
-  expect = chai.expect,
-  Support = require('./support'),
-  Transaction = require('../../lib/transaction'),
-  current = Support.sequelize,
-  delay = require('delay');
+	expect = chai.expect,
+	Support = require('./support'),
+	Transaction = require('../../lib/transaction'),
+	current = Support.sequelize,
+	delay = require('delay');
 
 if (current.dialect.supports.transactions) {
+	describe(Support.getTestDialectTeaser('Sequelize#transaction'), () => {
+		describe('then', () => {
+			it('gets triggered once a transaction has been successfully committed', async function () {
+				let called = false;
 
-  describe(Support.getTestDialectTeaser('Sequelize#transaction'), () => {
+				const t = await this.sequelize.transaction();
 
-    describe('then', () => {
-      it('gets triggered once a transaction has been successfully committed', async function() {
-        let called = false;
+				await t.commit();
+				called = 1;
+				expect(called).to.be.ok;
+			});
 
-        const t = await this
-          .sequelize
-          .transaction();
+			it('gets triggered once a transaction has been successfully rolled back', async function () {
+				let called = false;
 
-        await t.commit();
-        called = 1;
-        expect(called).to.be.ok;
-      });
+				const t = await this.sequelize.transaction();
 
-      it('gets triggered once a transaction has been successfully rolled back', async function() {
-        let called = false;
+				await t.rollback();
+				called = 1;
+				expect(called).to.be.ok;
+			});
 
-        const t = await this
-          .sequelize
-          .transaction();
+			if (Support.getTestDialect() !== 'sqlite') {
+				it('works for long running transactions', async function () {
+					const sequelize = await Support.prepareTransactionTest(this.sequelize);
+					this.sequelize = sequelize;
 
-        await t.rollback();
-        called = 1;
-        expect(called).to.be.ok;
-      });
+					this.User = sequelize.define(
+						'User',
+						{
+							name: Support.Sequelize.STRING,
+						},
+						{ timestamps: false }
+					);
 
-      if (Support.getTestDialect() !== 'sqlite') {
-        it('works for long running transactions', async function() {
-          const sequelize = await Support.prepareTransactionTest(this.sequelize);
-          this.sequelize = sequelize;
+					await sequelize.sync({ force: true });
+					const t = await this.sequelize.transaction();
+					let query = 'select sleep(2);';
 
-          this.User = sequelize.define('User', {
-            name: Support.Sequelize.STRING
-          }, { timestamps: false });
+					switch (Support.getTestDialect()) {
+						case 'postgres':
+							query = 'select pg_sleep(2);';
+							break;
+						case 'sqlite':
+							query = 'select sqlite3_sleep(2000);';
+							break;
+						case 'mssql':
+							query = "WAITFOR DELAY '00:00:02';";
+							break;
+						default:
+							break;
+					}
 
-          await sequelize.sync({ force: true });
-          const t = await this.sequelize.transaction();
-          let query = 'select sleep(2);';
+					await this.sequelize.query(query, { transaction: t });
+					await this.User.create({ name: 'foo' });
+					await this.sequelize.query(query, { transaction: t });
+					await t.commit();
+					const users = await this.User.findAll();
+					expect(users.length).to.equal(1);
+					expect(users[0].name).to.equal('foo');
+				});
+			}
+		});
 
-          switch (Support.getTestDialect()) {
-            case 'postgres':
-              query = 'select pg_sleep(2);';
-              break;
-            case 'sqlite':
-              query = 'select sqlite3_sleep(2000);';
-              break;
-            case 'mssql':
-              query = 'WAITFOR DELAY \'00:00:02\';';
-              break;
-            default:
-              break;
-          }
+		describe('complex long running example', () => {
+			it('works with promise syntax', async function () {
+				const sequelize = await Support.prepareTransactionTest(this.sequelize);
+				const Test = sequelize.define('Test', {
+					id: { type: Support.Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
+					name: { type: Support.Sequelize.STRING },
+				});
 
-          await this.sequelize.query(query, { transaction: t });
-          await this.User.create({ name: 'foo' });
-          await this.sequelize.query(query, { transaction: t });
-          await t.commit();
-          const users = await this.User.findAll();
-          expect(users.length).to.equal(1);
-          expect(users[0].name).to.equal('foo');
-        });
-      }
-    });
+				await sequelize.sync({ force: true });
+				const transaction = await sequelize.transaction();
+				expect(transaction).to.be.instanceOf(Transaction);
 
-    describe('complex long running example', () => {
-      it('works with promise syntax', async function() {
-        const sequelize = await Support.prepareTransactionTest(this.sequelize);
-        const Test = sequelize.define('Test', {
-          id: { type: Support.Sequelize.INTEGER, primaryKey: true, autoIncrement: true },
-          name: { type: Support.Sequelize.STRING }
-        });
+				await Test.create({ name: 'Peter' }, { transaction });
 
-        await sequelize.sync({ force: true });
-        const transaction = await sequelize.transaction();
-        expect(transaction).to.be.instanceOf(Transaction);
+				await delay(1000);
 
-        await Test
-          .create({ name: 'Peter' }, { transaction });
+				await transaction.commit();
 
-        await delay(1000);
+				const count = await Test.count();
+				expect(count).to.equal(1);
+			});
+		});
 
-        await transaction
-          .commit();
+		describe('concurrency', () => {
+			describe('having tables with uniqueness constraints', () => {
+				beforeEach(async function () {
+					const sequelize = await Support.prepareTransactionTest(this.sequelize);
+					this.sequelize = sequelize;
 
-        const count = await Test.count();
-        expect(count).to.equal(1);
-      });
-    });
+					this.Model = sequelize.define(
+						'Model',
+						{
+							name: { type: Support.Sequelize.STRING, unique: true },
+						},
+						{
+							timestamps: false,
+						}
+					);
 
-    describe('concurrency', () => {
-      describe('having tables with uniqueness constraints', () => {
-        beforeEach(async function() {
-          const sequelize = await Support.prepareTransactionTest(this.sequelize);
-          this.sequelize = sequelize;
+					await this.Model.sync({ force: true });
+				});
 
-          this.Model = sequelize.define('Model', {
-            name: { type: Support.Sequelize.STRING, unique: true }
-          }, {
-            timestamps: false
-          });
+				it('triggers the error event for the second transactions', async function () {
+					const t1 = await this.sequelize.transaction();
+					const t2 = await this.sequelize.transaction();
+					await this.Model.create({ name: 'omnom' }, { transaction: t1 });
 
-          await this.Model.sync({ force: true });
-        });
-
-        it('triggers the error event for the second transactions', async function() {
-          const t1 = await this.sequelize.transaction();
-          const t2 = await this.sequelize.transaction();
-          await this.Model.create({ name: 'omnom' }, { transaction: t1 });
-
-          await Promise.all([
-            (async () => {
-              try {
-                return await this.Model.create({ name: 'omnom' }, { transaction: t2 });
-              } catch (err) {
-                expect(err).to.be.ok;
-                return t2.rollback();
-              }
-            })(),
-            delay(100).then(() => {
-              return t1.commit();
-            })
-          ]);
-        });
-      });
-    });
-  });
-
+					await Promise.all([
+						(async () => {
+							try {
+								return await this.Model.create({ name: 'omnom' }, { transaction: t2 });
+							} catch (err) {
+								expect(err).to.be.ok;
+								return t2.rollback();
+							}
+						})(),
+						delay(100).then(() => {
+							return t1.commit();
+						}),
+					]);
+				});
+			});
+		});
+	});
 }
