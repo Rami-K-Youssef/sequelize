@@ -1335,6 +1335,11 @@ export class Sequelize extends Hooks {
 	public sync(options?: SyncOptions): Promise<this>;
 
 	/**
+	 * Associate constraint names to all foreign keys
+	 */
+	public setupConstraintNames(): void;
+
+	/**
 	 * Truncate all tables defined through the sequelize models. This is done
 	 * by calling Model.truncate() on each model.
 	 *
